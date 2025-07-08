@@ -9,6 +9,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
+
 import static io.hhplus.tdd.point.TransactionType.CHARGE;
 import static io.hhplus.tdd.point.TransactionType.USE;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -145,4 +147,41 @@ public class PointServiceUnitTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("사용할 포인트 잔액이 부족합니다.");
     }
+
+    @Test
+    @DisplayName("유저 포인트 이력 목록 조회 - 성공 (이력 있는 경우)")
+    void useUserPointHistoriesSuccess() {
+        // given
+        long id = 1L;
+
+        List<PointHistory> mockHistories = List.of(
+                new PointHistory(1000L, id, 1000L, TransactionType.CHARGE, 1000000L),
+                new PointHistory(1001L, id, 500L, TransactionType.USE, 2000000L),
+                new PointHistory(1002L, id, 2000L, TransactionType.CHARGE, 3000000L)
+        );
+        when(pointHistoryTable.selectAllByUserId(id)).thenReturn(mockHistories);
+
+        // when
+        List<PointHistory> result = pointService.getUserPointHistories(id);
+
+        // then
+        assertThat(result).isEqualTo(mockHistories);
+    }
+
+    @Test
+    @DisplayName("유저 포인트 이력 목록 조회 - 성공 (이력 없는 경우)")
+    void useUserPointHistoriesSuccess2() {
+        // given
+        long id = 1L;
+
+        List<PointHistory> mockHistories = List.of();
+        when(pointHistoryTable.selectAllByUserId(id)).thenReturn(mockHistories);
+
+        // when
+        List<PointHistory> result = pointService.getUserPointHistories(id);
+
+        // then
+        assertThat(result).isEmpty();
+    }
+
 }

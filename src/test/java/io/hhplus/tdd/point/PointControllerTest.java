@@ -41,7 +41,7 @@ class PointControllerTest {
     }
 
     @Test
-    @DisplayName("유저 포인트 조회 API - 정상")
+    @DisplayName("유저 포인트 조회 API - 성공")
     void getUserPointAPISuccess() throws Exception {
         mockMvc.perform(get("/point/1"))
                 .andExpect(status().isOk())
@@ -62,7 +62,7 @@ class PointControllerTest {
     }
 
     @Test
-    @DisplayName("유저 포인트 충전 API - 정상")
+    @DisplayName("유저 포인트 충전 API - 성공")
     void getChargePointAPISuccess() throws Exception {
         mockMvc.perform(patch("/point/1/charge")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -84,7 +84,7 @@ class PointControllerTest {
     }
 
     @Test
-    @DisplayName("유저 포인트 사용 API - 정상")
+    @DisplayName("유저 포인트 사용 API - 성공")
     void getUsePointAPISuccess() throws Exception {
         mockMvc.perform(patch("/point/1/use")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -113,6 +113,28 @@ class PointControllerTest {
                         .content("4000")
                 )
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("유저 포인트 이력 목록 조회 API - 성공")
+    void getUserPointHistoriesAPISuccess() throws Exception {
+
+        // 최초 충전: 3000
+        pointService.chargeUserPoint(1, 2000);
+        pointService.useUserPoint(1, 500);
+
+        mockMvc.perform(get("/point/1/histories"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3)) // 응답 배열 크기 확인
+                .andExpect(jsonPath("$[0].userId").value(1))
+                .andExpect(jsonPath("$[0].amount").value(3000))
+                .andExpect(jsonPath("$[0].type").value("CHARGE"))
+                .andExpect(jsonPath("$[1].userId").value(1))
+                .andExpect(jsonPath("$[1].amount").value(2000))
+                .andExpect(jsonPath("$[1].type").value("CHARGE"))
+                .andExpect(jsonPath("$[1].userId").value(1))
+                .andExpect(jsonPath("$[1].amount").value(500))
+                .andExpect(jsonPath("$[1].type").value("USE"));
     }
 
 }
