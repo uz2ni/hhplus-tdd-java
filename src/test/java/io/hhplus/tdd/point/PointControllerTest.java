@@ -6,11 +6,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -38,21 +40,6 @@ class PointControllerTest {
         pointService.chargeUserPoint(1, 3000);  // 미리 3000 포인트 세팅
     }
 
-    /*
-    @Test
-    @DisplayName("유저 포인트 정상 조회")
-    void getUserPointSuccess() {
-
-        // Given (생략)
-
-        // When
-        UserPoint userPoint = pointService.getUserPoint(1);
-
-        // Then
-        assertThat(userPoint.point()).isEqualTo(3000);
-    }
-    */
-
     @Test
     @DisplayName("유저 포인트 조회 API - 정상")
     void getUserPointAPISuccess() throws Exception {
@@ -71,6 +58,28 @@ class PointControllerTest {
                 .toUriString();
 
         mockMvc.perform(get(url))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("유저 포인트 충전 API - 정상")
+    void getChargePointAPISuccess() throws Exception {
+        mockMvc.perform(patch("/point/1/charge")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("1000")
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.point").value(4000));
+    }
+
+    @Test
+    @DisplayName("유저 포인트 충전 API - 실패 (충전 금액이 0이하인 경우)")
+    void getChargePointAPIFail() throws Exception {
+        mockMvc.perform(patch("/point/1/charge")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("-1000")
+                )
                 .andExpect(status().isBadRequest());
     }
 

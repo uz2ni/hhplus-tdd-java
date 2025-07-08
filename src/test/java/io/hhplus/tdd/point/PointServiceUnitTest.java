@@ -86,4 +86,45 @@ public class PointServiceUnitTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("충전 금액은 0 초과이어야 합니다.");
     }
+
+    @Test
+    @DisplayName("유저 포인트 사용 - 성공")
+    void useUserPointSuccess() {
+        // given
+        long id = 1L;
+        long initAmount = 3000L;
+        long amount = 1000L;
+        long totalAmount = 4000L;
+
+        PointHistory currentInsert = new PointHistory(1234L, id, amount, CHARGE, System.currentTimeMillis());
+        when(pointHistoryTable.insert(eq(id), eq(amount), eq(CHARGE), anyLong())).thenReturn(currentInsert);
+
+        UserPoint currentSelect = new UserPoint(id, initAmount, System.currentTimeMillis());
+        when(userPointTable.selectById(id)).thenReturn(currentSelect);
+
+        UserPoint currentInsertOrUpdate = new UserPoint(id, totalAmount, System.currentTimeMillis());
+        when(userPointTable.insertOrUpdate(id, totalAmount)).thenReturn(currentInsertOrUpdate);
+
+        // when
+        UserPoint result = pointService.chargeUserPoint(id, amount);
+
+        // then 1. 포인트 충전 이력이 업데이트 되었는지 확인
+        verify(pointHistoryTable).insert(eq(id), eq(amount), eq(CHARGE), anyLong());
+
+        // then 2. 포인트 최종 결과가 n인지 확인
+        assertThat(result.point()).isEqualTo(4000);
+    }
+
+    @Test
+    @DisplayName("유저 포인트 사용 - 실패 (0 이하 금액 예외 발생)")
+    void useUserPointFail() {
+        // given
+        long id = 1L;
+        long negativeAmount = -1000L;
+
+        // when & then
+        assertThatThrownBy(() -> pointService.chargeUserPoint(id, negativeAmount))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("충전 금액은 0 초과이어야 합니다.");
+    }
 }
