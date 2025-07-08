@@ -10,6 +10,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static io.hhplus.tdd.point.TransactionType.CHARGE;
+import static io.hhplus.tdd.point.TransactionType.USE;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -93,11 +94,11 @@ public class PointServiceUnitTest {
         // given
         long id = 1L;
         long initAmount = 3000L;
-        long amount = 1000L;
-        long totalAmount = 4000L;
+        long useAmount = 1000L;
+        long totalAmount = 2000L;
 
-        PointHistory currentInsert = new PointHistory(1234L, id, amount, CHARGE, System.currentTimeMillis());
-        when(pointHistoryTable.insert(eq(id), eq(amount), eq(CHARGE), anyLong())).thenReturn(currentInsert);
+        PointHistory currentInsert = new PointHistory(1234L, id, useAmount, USE, System.currentTimeMillis());
+        when(pointHistoryTable.insert(eq(id), eq(useAmount), eq(USE), anyLong())).thenReturn(currentInsert);
 
         UserPoint currentSelect = new UserPoint(id, initAmount, System.currentTimeMillis());
         when(userPointTable.selectById(id)).thenReturn(currentSelect);
@@ -106,13 +107,13 @@ public class PointServiceUnitTest {
         when(userPointTable.insertOrUpdate(id, totalAmount)).thenReturn(currentInsertOrUpdate);
 
         // when
-        UserPoint result = pointService.chargeUserPoint(id, amount);
+        UserPoint result = pointService.useUserPoint(id, useAmount);
 
         // then 1. 포인트 충전 이력이 업데이트 되었는지 확인
-        verify(pointHistoryTable).insert(eq(id), eq(amount), eq(CHARGE), anyLong());
+        verify(pointHistoryTable).insert(eq(id), eq(useAmount), eq(USE), anyLong());
 
         // then 2. 포인트 최종 결과가 n인지 확인
-        assertThat(result.point()).isEqualTo(4000);
+        assertThat(result.point()).isEqualTo(totalAmount);
     }
 
     @Test
@@ -123,8 +124,25 @@ public class PointServiceUnitTest {
         long negativeAmount = -1000L;
 
         // when & then
-        assertThatThrownBy(() -> pointService.chargeUserPoint(id, negativeAmount))
+        assertThatThrownBy(() -> pointService.useUserPoint(id, negativeAmount))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("충전 금액은 0 초과이어야 합니다.");
+                .hasMessageContaining("사용 금액은 0 초과이어야 합니다.");
+    }
+
+    @Test
+    @DisplayName("유저 포인트 사용 - 실패 (잔액 부족 시 예외 발생)")
+    void useUserPointFail2() {
+        // given
+        long id = 1L;
+        long initAmount = 1000L;
+        long useAmount = 3000L;
+
+        UserPoint currentSelect = new UserPoint(id, initAmount, System.currentTimeMillis());
+        when(userPointTable.selectById(id)).thenReturn(currentSelect);
+
+        // when & then
+        assertThatThrownBy(() -> pointService.useUserPoint(id, useAmount))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("사용할 포인트 잔액이 부족합니다.");
     }
 }

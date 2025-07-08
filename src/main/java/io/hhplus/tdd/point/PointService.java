@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import java.awt.*;
 
 import static io.hhplus.tdd.point.TransactionType.CHARGE;
+import static io.hhplus.tdd.point.TransactionType.USE;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +45,31 @@ public class PointService {
 
         // 최종 포인트 업데이트
         long totalPoint = userPoint.point() + amount;
+        userPoint = userPointTable.insertOrUpdate(id, totalPoint);
+
+        return userPoint;
+    }
+
+    public UserPoint useUserPoint(long id, long amount) {
+
+        // 예외 처리
+        if(amount <= 0) {
+            throw new IllegalArgumentException("사용 금액은 0 초과이어야 합니다.");
+        }
+
+        // 기존 포인트 조회
+        UserPoint userPoint = userPointTable.selectById(id);
+
+        // 잔액 부족 예외 처리
+        if(userPoint.point() < amount) {
+            throw new IllegalArgumentException("사용할 포인트 잔액이 부족합니다.");
+        }
+
+        // 포인트 이력 추가
+        pointHistoryTable.insert(id, amount, USE, System.currentTimeMillis());
+
+        // 최종 포인트 업데이트
+        long totalPoint = userPoint.point() - amount;
         userPoint = userPointTable.insertOrUpdate(id, totalPoint);
 
         return userPoint;

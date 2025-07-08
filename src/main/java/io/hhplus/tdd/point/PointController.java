@@ -55,12 +55,15 @@ public class PointController {
 
     /**
      * TODO - 특정 유저의 포인트를 사용하는 기능을 작성해주세요.
+     * <정책>
+     * 1. 사용 금액은 0보다 큰 양수여야 한다.
+     * 2. 사용 금액만큼 잔액이 있어야 한다.
      */
     @PatchMapping("{id}/use")
     public UserPoint use(
             @PathVariable long id,
             @RequestBody long amount
     ) {
-        return new UserPoint(0, 0, 0);
+        return pointService.useUserPoint(id, amount);
     }
 }

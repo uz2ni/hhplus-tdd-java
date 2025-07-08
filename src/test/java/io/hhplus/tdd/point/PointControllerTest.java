@@ -83,4 +83,36 @@ class PointControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    @DisplayName("유저 포인트 사용 API - 정상")
+    void getUsePointAPISuccess() throws Exception {
+        mockMvc.perform(patch("/point/1/use")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("1000")
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.point").value(2000));
+    }
+
+    @Test
+    @DisplayName("유저 포인트 사용 API - 실패 (충전 금액이 0이하인 경우)")
+    void getUsePointAPIFail() throws Exception {
+        mockMvc.perform(patch("/point/1/use")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("-1000")
+                )
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("유저 포인트 사용 API - 실패 (잔액 부족 시 예외 발생)")
+    void getUsePointAPIFail2() throws Exception {
+        mockMvc.perform(patch("/point/1/use")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("4000")
+                )
+                .andExpect(status().isBadRequest());
+    }
+
 }
