@@ -18,6 +18,8 @@ public class PointController {
 
     /**
      * TODO - 특정 유저의 포인트를 조회하는 기능을 작성해주세요.
+     * <정책>
+     * 1. 유저 id는 long 타입의 숫자로만 이루어져있다. 해당 타입의 유저는 모두 존재하고, 최초 포인트는 0으로 초기화 되어있다.
      */
     @GetMapping("{id}")
     public UserPoint point(

@@ -1,6 +1,7 @@
 package io.hhplus.tdd.point;
 
 import io.hhplus.tdd.database.UserPointTable;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -10,6 +11,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.mockito.Mockito.when;
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * 단위 테스트
+ */
 @ExtendWith(MockitoExtension.class)
 public class PointServiceUnitTest {
 
@@ -20,7 +24,8 @@ public class PointServiceUnitTest {
     private PointService pointService;
 
     @Test
-    void getUserPoint() {
+    @DisplayName("유저 포인트 조회 - 성공")
+    void getUserPointSuccess() {
         // given (테스트에 필요한 가짜 객체(userPointTable)의 동작을 정의함)
         long id = 1L;
         UserPoint current = new UserPoint(id, 3000, System.currentTimeMillis());
@@ -29,7 +34,7 @@ public class PointServiceUnitTest {
         // when (테스트 대상 메서드 호출)
         UserPoint result = pointService.getUserPoint(id);
 
-        // then (결과 검증)
+        // then (결과 상태 검증)
         assertThat(result.point()).isEqualTo(3000);
     }
 }
