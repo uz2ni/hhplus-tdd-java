@@ -30,6 +30,8 @@ public class PointController {
 
     /**
      * TODO - 특정 유저의 포인트 충전/이용 내역을 조회하는 기능을 작성해주세요.
+     * <정책>
+     *
      */
     @GetMapping("{id}/histories")
     public List<PointHistory> history(
@@ -40,6 +42,8 @@ public class PointController {
 
     /**
      * TODO - 특정 유저의 포인트를 충전하는 기능을 작성해주세요.
+     * <정책>
+     * 1. 충전 금액은 0보다 큰 양수여야 한다.
      */
     @PatchMapping("{id}/charge")
     public UserPoint charge(
