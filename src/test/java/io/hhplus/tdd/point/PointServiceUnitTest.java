@@ -50,7 +50,7 @@ public class PointServiceUnitTest {
     }
 
     @Test
-    @DisplayName("유저 포인트 충전 - 성공")
+    @DisplayName("유저 포인트 충전 - 성공 (총 포인트가 최대 잔고 미만인 경우)")
     void chargeUserPointSuccess() {
         // given
         long id = 1L;
@@ -75,6 +75,37 @@ public class PointServiceUnitTest {
 
         // then 2. 포인트 최종 결과가 n인지 확인
         assertThat(result.point()).isEqualTo(4000);
+    }
+
+
+    @Test
+    @DisplayName("유저 포인트 충전 - 성공 (충전 시 총 포인트가 최대 잔고를 넘는 경우 100000까지만 저장)")
+    void chargeUserPointFail2() {
+        // given
+        long id = 1L;
+        long initAmount = 80000L;
+        long amount = 50000L;   // 충전 요청한 금액
+        long realAmount = 20000L; // 실제 충전될 금액
+        long realTotalAmount = 100000; // 실제 총 잔고 금액
+
+        PointHistory currentInsert = new PointHistory(1234L, id, realAmount, CHARGE, System.currentTimeMillis());
+        when(pointHistoryTable.insert(eq(id), eq(realAmount), eq(CHARGE), anyLong())).thenReturn(currentInsert);
+
+        UserPoint currentSelect = new UserPoint(id, initAmount, System.currentTimeMillis());
+        when(userPointTable.selectById(id)).thenReturn(currentSelect);
+
+        UserPoint currentInsertOrUpdate = new UserPoint(id, realTotalAmount, System.currentTimeMillis());
+        when(userPointTable.insertOrUpdate(id, realTotalAmount)).thenReturn(currentInsertOrUpdate);
+
+        // when
+        UserPoint result = pointService.chargeUserPoint(id, amount);
+
+        // then
+        // 1. 실제 충전될 금액이 맞는지 검증
+        verify(pointHistoryTable).insert(eq(id), eq(realAmount), eq(CHARGE), anyLong());
+
+        // 2. 저장된 총 포인트 금액이 100000 인지 검증
+        assertThat(result.point()).isEqualTo(realTotalAmount);
     }
 
     @Test

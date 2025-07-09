@@ -15,6 +15,8 @@ import static io.hhplus.tdd.point.TransactionType.USE;
 @RequiredArgsConstructor
 public class PointService {
 
+    private static final long MAX_POINT_AMOUNT = 100000;
+
     private final UserPointTable userPointTable;
     private final PointHistoryTable pointHistoryTable;
 
@@ -40,6 +42,11 @@ public class PointService {
 
         // 기존 포인트 조회
         UserPoint userPoint = userPointTable.selectById(id);
+
+        // 포인트 충전 시 최대 금액 넘는지 체크, 최대 금액까지만 충전되도록 충전 금액 설정
+        if(userPoint.point() + amount > MAX_POINT_AMOUNT) {
+            amount = MAX_POINT_AMOUNT - userPoint.point();
+        }
 
         // 포인트 이력 추가
         pointHistoryTable.insert(id, amount, CHARGE, System.currentTimeMillis());

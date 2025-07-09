@@ -44,6 +44,7 @@ public class PointController {
      * TODO - 특정 유저의 포인트를 충전하는 기능을 작성해주세요.
      * <정책>
      * 1. 충전 금액은 0보다 큰 양수여야 한다.
+     * 2. 포인트 최대 잔고는 100000 이며, 충전 시 최대 잔고가 넘는 경우 최대 10000 까지만 저장된다.
      */
     @PatchMapping("{id}/charge")
     public UserPoint charge(
