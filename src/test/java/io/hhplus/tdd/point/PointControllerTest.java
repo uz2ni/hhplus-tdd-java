@@ -7,10 +7,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest // Spring Boot 애플리케이션의 전체 컨텍스트(ApplicationContext) 를 로드함. 모든 빈(@Service, @Repository, @Component 등)을 실제로 주입받아서 테스트
                 // 파라미터 기본값 Mock 사용 (이유: 흐름 테스트가 목적이기 때문에 서버 띄워지는 것은 상관 없어서)
 @AutoConfigureMockMvc // 실제 HTTP 요청을 흉내 내는 테스트용 클라이언트로 컨트롤러를 호출. 없으면 @autowired MockMvc 주입 안됨. (이것 안쓰고 TestRestTemplate 주입받아 api 날리는 방법도 있음)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD) // 테스트마다 Spring Boot 새로 띄움. 테스트 독립성 보장하는 용도. (비추 기법인데, 현재 과제 조건에서 Data 로직 변경을 못하니 초기화 코드를 붙일 수 없어서 사용함)
 class PointControllerTest {
 
     @Autowired
@@ -132,9 +133,9 @@ class PointControllerTest {
                 .andExpect(jsonPath("$[1].userId").value(1))
                 .andExpect(jsonPath("$[1].amount").value(2000))
                 .andExpect(jsonPath("$[1].type").value("CHARGE"))
-                .andExpect(jsonPath("$[1].userId").value(1))
-                .andExpect(jsonPath("$[1].amount").value(500))
-                .andExpect(jsonPath("$[1].type").value("USE"));
+                .andExpect(jsonPath("$[2].userId").value(1))
+                .andExpect(jsonPath("$[2].amount").value(500))
+                .andExpect(jsonPath("$[2].type").value("USE"));
     }
 
 }
