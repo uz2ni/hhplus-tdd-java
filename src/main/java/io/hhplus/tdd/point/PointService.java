@@ -1,0 +1,93 @@
+package io.hhplus.tdd.point;
+
+import io.hhplus.tdd.database.PointHistoryTable;
+import io.hhplus.tdd.database.UserPointTable;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.awt.*;
+import java.util.List;
+
+import static io.hhplus.tdd.point.TransactionType.CHARGE;
+import static io.hhplus.tdd.point.TransactionType.USE;
+
+@Service
+@RequiredArgsConstructor
+public class PointService {
+
+    private static final long MAX_POINT_AMOUNT = 100000;
+
+    private final UserPointTable userPointTable;
+    private final PointHistoryTable pointHistoryTable;
+
+    /**
+     * 특정 유저의 포인트를 조회
+     */
+    public UserPoint getUserPoint(long id) {
+
+        UserPoint userPoint = userPointTable.selectById(id);
+        return userPoint;
+
+    }
+
+    /**
+     * 특정 유저의 포인트를 충전
+     */
+    public UserPoint chargeUserPoint(long id, long amount) {
+
+        // 예외 처리
+        if(amount <= 0) {
+            throw new IllegalArgumentException("충전 금액은 0 초과이어야 합니다.");
+        }
+
+        // 기존 포인트 조회
+        UserPoint userPoint = userPointTable.selectById(id);
+
+        // 포인트 충전 시 최대 금액 넘는지 체크, 최대 금액까지만 충전되도록 충전 금액 설정
+        if(userPoint.point() + amount > MAX_POINT_AMOUNT) {
+            amount = MAX_POINT_AMOUNT - userPoint.point();
+        }
+
+        // 포인트 이력 추가
+        pointHistoryTable.insert(id, amount, CHARGE, System.currentTimeMillis());
+
+        // 최종 포인트 업데이트
+        long totalPoint = userPoint.point() + amount;
+        userPoint = userPointTable.insertOrUpdate(id, totalPoint);
+
+        return userPoint;
+    }
+
+    public UserPoint useUserPoint(long id, long amount) {
+
+        // 예외 처리
+        if(amount <= 0) {
+            throw new IllegalArgumentException("사용 금액은 0 초과이어야 합니다.");
+        }
+
+        // 기존 포인트 조회
+        UserPoint userPoint = userPointTable.selectById(id);
+
+        // 잔액 부족 예외 처리
+        if(userPoint.point() < amount) {
+            throw new IllegalArgumentException("사용할 포인트 잔액이 부족합니다.");
+        }
+
+        // 포인트 이력 추가
+        pointHistoryTable.insert(id, amount, USE, System.currentTimeMillis());
+
+        // 최종 포인트 업데이트
+        long totalPoint = userPoint.point() - amount;
+        userPoint = userPointTable.insertOrUpdate(id, totalPoint);
+
+        return userPoint;
+    }
+
+    public List<PointHistory> getUserPointHistories(long id) {
+
+        List<PointHistory> pointHistories = pointHistoryTable.selectAllByUserId(id);
+
+        return pointHistories;
+
+    }
+}
