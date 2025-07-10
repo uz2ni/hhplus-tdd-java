@@ -1,13 +1,11 @@
 package io.hhplus.tdd.point;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -22,7 +20,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest // Spring Boot 애플리케이션의 전체 컨텍스트(ApplicationContext) 를 로드함. 모든 빈(@Service, @Repository, @Component 등)을 실제로 주입받아서 테스트
                 // 파라미터 기본값 Mock 사용 (이유: 흐름 테스트가 목적이기 때문에 서버 띄워지는 것은 상관 없어서)
 @AutoConfigureMockMvc // 실제 HTTP 요청을 흉내 내는 테스트용 클라이언트로 컨트롤러를 호출. 없으면 @autowired MockMvc 주입 안됨. (이것 안쓰고 TestRestTemplate 주입받아 api 날리는 방법도 있음)
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD) // 테스트마다 Spring Boot 새로 띄움. 테스트 독립성 보장하는 용도. (비추 기법인데, 현재 과제 조건에서 Data 로직 변경을 못하니 초기화 코드를 붙일 수 없어서 사용함)
 class PointControllerTest {
 
     @Autowired
@@ -36,14 +33,12 @@ class PointControllerTest {
      * 테스트 간의 데이터 간섭 방지를 위해 포인트 초기화
      */
 
-    @BeforeEach
-    void setUp() {
-        pointService.chargeUserPoint(1, 3000);  // 미리 3000 포인트 세팅
-    }
-
     @Test
-    @DisplayName("유저 포인트 조회 API - 성공")
+    @DisplayName("유저 포인트 조회 - 성공")
     void getUserPointAPISuccess() throws Exception {
+        // given
+        pointService.chargeUserPoint(1, 3000); // 초기값
+
         mockMvc.perform(get("/point/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
@@ -51,7 +46,7 @@ class PointControllerTest {
     }
 
     @Test
-    @DisplayName("유저 포인트 조회 API - 실패 (id가 숫자가 아닌 경우)")
+    @DisplayName("유저 포인트 조회 - 실패 (id가 숫자가 아닌 경우)")
     void getUserPointAPIFailWithPath() throws Exception {
         String url = UriComponentsBuilder.fromPath("/point/{id}")
                 .buildAndExpand("항해99")
@@ -63,21 +58,24 @@ class PointControllerTest {
     }
 
     @Test
-    @DisplayName("유저 포인트 충전 API - 성공")
+    @DisplayName("유저 포인트 충전 - 성공")
     void getChargePointAPISuccess() throws Exception {
-        mockMvc.perform(patch("/point/1/charge")
+        // given
+        pointService.chargeUserPoint(2, 4000); // 초기값
+
+        mockMvc.perform(patch("/point/2/charge")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("1000")
                 )
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.point").value(4000));
+                .andExpect(jsonPath("$.id").value(2))
+                .andExpect(jsonPath("$.point").value(5000));
     }
 
     @Test
-    @DisplayName("유저 포인트 충전 API - 실패 (충전 금액이 0이하인 경우)")
+    @DisplayName("유저 포인트 충전 - 실패 (충전 금액이 0이하인 경우)")
     void getChargePointAPIFail() throws Exception {
-        mockMvc.perform(patch("/point/1/charge")
+        mockMvc.perform(patch("/point/3/charge")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("-1000")
                 )
@@ -85,21 +83,24 @@ class PointControllerTest {
     }
 
     @Test
-    @DisplayName("유저 포인트 사용 API - 성공")
+    @DisplayName("유저 포인트 사용 - 성공")
     void getUsePointAPISuccess() throws Exception {
-        mockMvc.perform(patch("/point/1/use")
+        // given
+        pointService.chargeUserPoint(4, 4000); // 초기값
+
+        mockMvc.perform(patch("/point/4/use")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("1000")
                 )
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.point").value(2000));
+                .andExpect(jsonPath("$.id").value(4))
+                .andExpect(jsonPath("$.point").value(3000));
     }
 
     @Test
-    @DisplayName("유저 포인트 사용 API - 실패 (충전 금액이 0이하인 경우)")
+    @DisplayName("유저 포인트 사용 - 실패 (충전 금액이 0이하인 경우)")
     void getUsePointAPIFail() throws Exception {
-        mockMvc.perform(patch("/point/1/use")
+        mockMvc.perform(patch("/point/5/use")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("-1000")
                 )
@@ -107,33 +108,36 @@ class PointControllerTest {
     }
 
     @Test
-    @DisplayName("유저 포인트 사용 API - 실패 (잔액 부족 시 예외 발생)")
+    @DisplayName("유저 포인트 사용 - 실패 (잔액 부족 시 예외 발생)")
     void getUsePointAPIFail2() throws Exception {
-        mockMvc.perform(patch("/point/1/use")
+        // given
+        pointService.chargeUserPoint(6, 5000); // 초기값
+
+        mockMvc.perform(patch("/point/6/use")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("4000")
+                        .content("6000")
                 )
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    @DisplayName("유저 포인트 이력 목록 조회 API - 성공")
+    @DisplayName("포인트 충전,사용 후 유저 포인트 이력 목록 조회 - 성공")
     void getUserPointHistoriesAPISuccess() throws Exception {
 
-        // 최초 충전: 3000
-        pointService.chargeUserPoint(1, 2000);
-        pointService.useUserPoint(1, 500);
+        pointService.chargeUserPoint(7, 3000);
+        pointService.chargeUserPoint(7, 2000);
+        pointService.useUserPoint(7, 500);
 
-        mockMvc.perform(get("/point/1/histories"))
+        mockMvc.perform(get("/point/7/histories"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(3)) // 응답 배열 크기 확인
-                .andExpect(jsonPath("$[0].userId").value(1))
+                .andExpect(jsonPath("$[0].userId").value(7))
                 .andExpect(jsonPath("$[0].amount").value(3000))
                 .andExpect(jsonPath("$[0].type").value("CHARGE"))
-                .andExpect(jsonPath("$[1].userId").value(1))
+                .andExpect(jsonPath("$[1].userId").value(7))
                 .andExpect(jsonPath("$[1].amount").value(2000))
                 .andExpect(jsonPath("$[1].type").value("CHARGE"))
-                .andExpect(jsonPath("$[2].userId").value(1))
+                .andExpect(jsonPath("$[2].userId").value(7))
                 .andExpect(jsonPath("$[2].amount").value(500))
                 .andExpect(jsonPath("$[2].type").value("USE"));
     }
