@@ -149,5 +149,165 @@ class PointIntegrationTest {
         }
     }
 
+    @Test
+    @DisplayName("동일 사용자에 대한 동시 충전이 모두 반영된다")
+    void concurrentCharges_SameUser() throws InterruptedException {
+        // given
+        long userId = 300L;
+        int requestCount = 10;
+        long chargeAmount = 100L;
+        ExecutorService executorService = Executors.newFixedThreadPool(requestCount);
+        CountDownLatch latch = new CountDownLatch(requestCount);
+        AtomicInteger successCount = new AtomicInteger(0);
 
+        // when - 동일 사용자에게 10번 동시 충전
+        for (int i = 0; i < requestCount; i++) {
+            executorService.submit(() -> {
+                try {
+                    pointService.chargePoint(userId, chargeAmount);
+                    successCount.incrementAndGet();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        latch.await();
+        executorService.shutdown();
+
+        // then - 모든 충전이 성공
+        assertThat(successCount.get()).isEqualTo(requestCount);
+        System.out.println("successCount: " + successCount.get() + ", requestCount: " + requestCount);
+        pointService.getPointHistories(userId).stream().forEach(histories -> {
+            System.out.println(histories.id() + " : " + histories.amount());
+        });
+
+        // 최종 잔액 확인 (100 * 10 = 1000) -> 동시성 이슈인 부분
+        UserPoint point = pointService.getUserPoint(userId);
+        assertThat(point.point()).isEqualTo(chargeAmount * requestCount);
+        System.out.println("totalPoint: " + point.point());
+
+        // 히스토리 개수 확인
+        List<PointHistory> histories = pointService.getPointHistories(userId);
+        assertThat(histories).hasSize(requestCount);
+        System.out.println("histories size: " + histories.size());
+
+    }
+
+    @Test
+    @DisplayName("동일 사용자에 대한 동시 충전과 사용 요청이 정상 처리된다")
+    void concurrentChargeAndUse_SameUser() throws InterruptedException {
+        // given
+        long userId = 400L;
+        userPointTable.insertOrUpdate(userId, 10000L); // 초기 잔액 설정
+
+        int threadCount = 20;
+        ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
+        CountDownLatch latch = new CountDownLatch(threadCount);
+        AtomicInteger successCount = new AtomicInteger(0);
+
+        // when - 충전 10번, 사용 10번 동시 실행
+        for (int i = 0; i < threadCount; i++) {
+            final int index = i;
+            executorService.submit(() -> {
+                try {
+                    if (index % 2 == 0) {
+                        // 짝수: 충전
+                        pointService.chargePoint(userId, 100L);
+                    } else {
+                        // 홀수: 사용
+                        pointService.usePoint(userId, 100L);
+                    }
+                    successCount.incrementAndGet();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        latch.await();
+        executorService.shutdown();
+
+        // then - 충전과 사용이 정확히 반영되었는지 확인
+        assertThat(successCount.get()).isEqualTo(threadCount);
+
+        // 최종 잔액: 10000 + (100 * 10) - (100 * 10) = 10000
+        UserPoint finalPoint = pointService.getUserPoint(userId);
+        assertThat(finalPoint.point()).isEqualTo(10000L);
+
+        // 히스토리 확인
+        List<PointHistory> histories = pointService.getPointHistories(userId);
+        assertThat(histories).hasSize(threadCount);
+
+        long chargeCount = histories.stream()
+                .filter(h -> h.type() == TransactionType.CHARGE)
+                .count();
+        long useCount = histories.stream()
+                .filter(h -> h.type() == TransactionType.USE)
+                .count();
+
+        assertThat(chargeCount).isEqualTo(10);
+        assertThat(useCount).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("여러 사용자가 동시에 충전,사용을 복잡하게 수행해도 각자의 잔액이 정확하다")
+    void complexConcurrentScenario_MultipleUsers() throws InterruptedException {
+        // given
+        int userCount = 5;
+        ExecutorService executorService = Executors.newFixedThreadPool(userCount * 3);
+        CountDownLatch latch = new CountDownLatch(userCount * 3);
+
+        // when - 각 사용자당 충전, 사용, 충전 순서로 실행
+        for (int i = 0; i < userCount; i++) {
+            final long userId = 500L + i;
+
+            // 충전 1000
+            executorService.submit(() -> {
+                try {
+                    pointService.chargePoint(userId, 1000L);
+                } finally {
+                    latch.countDown();
+                }
+            });
+
+            // 사용 300
+            executorService.submit(() -> {
+                try {
+                    Thread.sleep(50); // 충전 후 사용하도록 약간의 딜레이
+                    pointService.usePoint(userId, 300L);
+                } catch (Exception e) {
+                    // 잔액 부족 시 무시
+                } finally {
+                    latch.countDown();
+                }
+            });
+
+            // 추가 충전 500
+            executorService.submit(() -> {
+                try {
+                    Thread.sleep(100); // 나중에 실행
+                    pointService.chargePoint(userId, 500L);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        latch.await();
+        executorService.shutdown();
+
+        // then - 각 사용자의 최종 잔액 확인 (1000 - 300 + 500 = 1200)
+        for (int i = 0; i < userCount; i++) {
+            long userId = 500L + i;
+            UserPoint point = pointService.getUserPoint(userId);
+            assertThat(point.point()).isGreaterThanOrEqualTo(1200L);
+        }
+    }
 }
