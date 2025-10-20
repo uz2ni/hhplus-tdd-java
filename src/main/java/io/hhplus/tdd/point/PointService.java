@@ -6,10 +6,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
 public class PointService {
+
+    private final Map<Long, Object> userLocks = new ConcurrentHashMap<>();
 
     private final UserPointTable userPointTable;
     private final PointHistoryTable pointHistoryTable;
@@ -29,6 +33,13 @@ public class PointService {
     }
 
     /**
+     * (공통 메서드) 유저 락 조회
+     */
+    private Object getUserLock(long userId) {
+        return userLocks.computeIfAbsent(userId, k -> new Object());
+    }
+
+    /**
      * 특정 유저의 포인트를 충전합니다.
      * 조건 : 충전 금액은 100보다 커야 함
      */
@@ -37,13 +48,18 @@ public class PointService {
             throw new IllegalArgumentException("충전 금액은 100 이상이어야 합니다.");
         }
 
-        UserPoint currentPoint = userPointTable.selectById(userId);
-        long newAmount = currentPoint.point() + amount;
+        Object lock = getUserLock(userId);
 
-        UserPoint updatedPoint = userPointTable.insertOrUpdate(userId, newAmount);
-        pointHistoryTable.insert(userId, amount, TransactionType.CHARGE, updatedPoint.updateMillis());
+        synchronized (lock) {
+            UserPoint currentPoint = userPointTable.selectById(userId);
+            long newAmount = currentPoint.point() + amount;
 
-        return updatedPoint;
+            UserPoint updatedPoint = userPointTable.insertOrUpdate(userId, newAmount);
+            pointHistoryTable.insert(userId, amount, TransactionType.CHARGE, updatedPoint.updateMillis());
+
+            return updatedPoint;
+        }
+
     }
 
     /**
@@ -55,17 +71,22 @@ public class PointService {
             throw new IllegalArgumentException("사용 금액은 100 이상이어야 합니다.");
         }
 
-        UserPoint currentPoint = userPointTable.selectById(userId);
+        Object lock = getUserLock(userId);
 
-        if (currentPoint.point() < amount) {
-            throw new IllegalArgumentException("포인트 잔액이 부족합니다.");
+        synchronized (lock) {
+            UserPoint currentPoint = userPointTable.selectById(userId);
+
+            if (currentPoint.point() < amount) {
+                throw new IllegalArgumentException("포인트 잔액이 부족합니다.");
+            }
+
+            long newAmount = currentPoint.point() - amount;
+
+            UserPoint updatedPoint = userPointTable.insertOrUpdate(userId, newAmount);
+            pointHistoryTable.insert(userId, amount, TransactionType.USE, updatedPoint.updateMillis());
+
+            return updatedPoint;
         }
 
-        long newAmount = currentPoint.point() - amount;
-
-        UserPoint updatedPoint = userPointTable.insertOrUpdate(userId, newAmount);
-        pointHistoryTable.insert(userId, amount, TransactionType.USE, updatedPoint.updateMillis());
-
-        return updatedPoint;
     }
 }
