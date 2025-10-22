@@ -37,13 +37,6 @@ public class PointService {
     }
 
     /**
-     * (공통 메서드) 유저 락 조회
-     */
-    private Object getUserLock(long userId) {
-        return userLocks.computeIfAbsent(userId, k -> new Object());
-    }
-
-    /**
      * 특정 유저의 포인트를 충전합니다.
      * 조건 : 충전 금액은 100보다 커야 함
      */
