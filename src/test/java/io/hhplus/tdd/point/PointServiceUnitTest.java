@@ -16,8 +16,8 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("PointService 유닛 테스트")
-class PointServiceTest {
+@DisplayName("PointService 단위 테스트")
+class PointServiceUnitTest {
 
     @Mock
     private UserPointTable userPointTable;
