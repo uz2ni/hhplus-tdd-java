@@ -1,10 +1,15 @@
 package io.hhplus.tdd.point;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.hhplus.tdd.database.UserPointTable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -13,10 +18,18 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
+@AutoConfigureMockMvc
 @DisplayName("Point 통합 테스트")
 class PointIntegrationTest {
+
+    @Autowired
+    private MockMvc mockMvc; // HTTP 요청/응답 시뮬레이션
 
     @Autowired
     private PointService pointService;
@@ -25,6 +38,128 @@ class PointIntegrationTest {
     private UserPointTable userPointTable;
 
     @Test
+    @DisplayName("포인트 조회 요청이 정상 응답된다")
+    void api_getPoint() throws Exception {
+        // given
+        long userId = 1L;
+        long amount = 3000L;
+        pointService.chargePoint(userId, amount);
+
+        // when & then
+        mockMvc.perform(get("/point/" + userId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(userId))
+                .andExpect(jsonPath("$.point").value(amount));
+    }
+
+    @Test
+    @DisplayName("포인트 조회 요청 시 실패한다 (id가 숫자가 아닌 경우)")
+    void api_getPoint_failWithNonNumericId() throws Exception {
+        // given
+        String userId = "힝헤99";
+
+        // when & then
+        String url = UriComponentsBuilder.fromPath("/point/{id}")
+                .buildAndExpand(userId)
+                .encode()
+                .toUriString();
+
+        mockMvc.perform(get(url))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("포인트 충전 요청이 정상 응답된다")
+    void api_chargePoint() throws Exception {
+        // given
+        long userId = 2L;
+        String chargeAmount = "1000";
+
+        // when
+        mockMvc.perform(patch("/point/" + userId + "/charge")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(chargeAmount)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(userId))
+                .andExpect(jsonPath("$.point").value(chargeAmount));
+    }
+
+    @Test
+    @DisplayName("포인트 충전 요청이 실패한다 (충전 금액이 100미만인 경우)")
+    void api_chargePoint_failWithNonAmount() throws Exception {
+        // given
+        long userId = 3L;
+        long chargeAmount = -1000L;
+
+        // when & then
+        mockMvc.perform(patch("/point/" + userId + "/charge")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(String.valueOf(chargeAmount))
+                )
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("포인트 사용 요청이 성공한다")
+    void api_usePoint() throws Exception {
+        // given
+        long userId = 4L;
+        long chargeAmount = 4000L;
+        long useAmount = 1000L;
+        long amount = chargeAmount - useAmount;
+        pointService.chargePoint(userId, chargeAmount);
+
+        // when & then
+        mockMvc.perform(patch("/point/" + userId + "/use")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(String.valueOf(useAmount))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(userId))
+                .andExpect(jsonPath("$.point").value(amount));
+    }
+
+    @Test
+    @DisplayName("포인트 사용 요청이 실패한다 (충전 금액보다 사용 금액이 많은 경우)")
+    void api_usePoint_failWithInsufficientBalance() throws Exception {
+        // given
+        long userId = 5L;
+        long chargeAmount = 4000L;
+        long useAmount = 5000L;
+        pointService.chargePoint(userId, chargeAmount);
+
+        // when & then
+        mockMvc.perform(patch("/point/" + userId + "/use")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(String.valueOf(useAmount))
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("포인트 잔액이 부족합니다."));
+    }
+
+    @Test
+    @DisplayName("유저 포인트 사용 요청이 실패한다 (사용 금액이 100미만인 경우)")
+    void api_useCharge_failWithInsufficientMinimumAmount() throws Exception {
+        //given
+        long userId = 6L;
+        long chargeAmount = 4000L;
+        long useAmount = -1000L;
+        pointService.chargePoint(userId, chargeAmount);
+
+        // when & then
+        mockMvc.perform(patch("/point/" + userId + "/use")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(String.valueOf(useAmount))
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("사용 금액은 100 이상이어야 합니다."));
+
+    }
+
+        @Test
     @DisplayName("포인트 충전 → 사용 → 조회 전체 플로우가 정상 동작한다")
     void fullFlow_ChargeUseAndQuery() {
         // given
