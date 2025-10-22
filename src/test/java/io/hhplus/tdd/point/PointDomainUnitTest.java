@@ -1,5 +1,7 @@
 package io.hhplus.tdd.point;
 
+import io.hhplus.tdd.exception.ErrorCode;
+import io.hhplus.tdd.exception.HanghaeException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -34,8 +36,9 @@ public class PointDomainUnitTest { // Mock&Stub 없이 실제 객체 사용
 
         // when & then
         assertThatThrownBy(() -> new UserPoint(userId, amount, System.currentTimeMillis()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("id는 음수일 수 없습니다");
+                .isInstanceOf(HanghaeException.class)
+                .hasMessage("id는 음수일 수 없습니다.")
+                .extracting("errorCode").isEqualTo(ErrorCode.NEGATIVE_ID);
     }
 
     @Test
@@ -66,8 +69,9 @@ public class PointDomainUnitTest { // Mock&Stub 없이 실제 객체 사용
 
         // when & then
         assertThatThrownBy(() -> new PointHistory(id, userId, amount, TransactionType.CHARGE, System.currentTimeMillis()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("id는 음수일 수 없습니다");
+                .isInstanceOf(HanghaeException.class)
+                .hasMessage("id는 음수일 수 없습니다.")
+                .extracting("errorCode").isEqualTo(ErrorCode.NEGATIVE_ID);
     }
 
     @Test
@@ -80,8 +84,9 @@ public class PointDomainUnitTest { // Mock&Stub 없이 실제 객체 사용
 
         // when & then
         assertThatThrownBy(() -> new PointHistory(id, userId, amount, TransactionType.CHARGE, System.currentTimeMillis()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("userId는 음수일 수 없습니다");
+                .isInstanceOf(HanghaeException.class)
+                .hasMessage("userId는 음수일 수 없습니다.")
+                .extracting("errorCode").isEqualTo(ErrorCode.NEGATIVE_USER_ID);
     }
 
     @Test
@@ -92,10 +97,11 @@ public class PointDomainUnitTest { // Mock&Stub 없이 실제 객체 사용
         long userId = 10L;
         long amount = -500L;
 
-        // when
+        // when & then
         assertThatThrownBy(() -> new PointHistory(id, userId, amount, TransactionType.CHARGE, System.currentTimeMillis()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("amount는 음수일 수 없습니다");
+                .isInstanceOf(HanghaeException.class)
+                .hasMessage("amount는 음수일 수 없습니다.")
+                .extracting("errorCode").isEqualTo(ErrorCode.NEGATIVE_AMOUNT);
     }
 
 

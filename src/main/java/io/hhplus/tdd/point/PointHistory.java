@@ -1,5 +1,8 @@
 package io.hhplus.tdd.point;
 
+import io.hhplus.tdd.exception.ErrorCode;
+import io.hhplus.tdd.exception.HanghaeException;
+
 public record PointHistory(
         long id,
         long userId,
@@ -10,13 +13,13 @@ public record PointHistory(
 
     public PointHistory {
         if (id < 0) {
-            throw new IllegalArgumentException("id는 음수일 수 없습니다.");
+            throw new HanghaeException(ErrorCode.NEGATIVE_ID);
         }
         if (userId < 0) {
-            throw new IllegalArgumentException("userId는 음수일 수 없습니다.");
+            throw new HanghaeException(ErrorCode.NEGATIVE_USER_ID);
         }
         if (amount < 0) {
-            throw new IllegalArgumentException("amount는 음수일 수 없습니다.");
+            throw new HanghaeException(ErrorCode.NEGATIVE_AMOUNT);
         }
     }
 

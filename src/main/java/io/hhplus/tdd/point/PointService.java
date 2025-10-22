@@ -2,6 +2,8 @@ package io.hhplus.tdd.point;
 
 import io.hhplus.tdd.database.PointHistoryTable;
 import io.hhplus.tdd.database.UserPointTable;
+import io.hhplus.tdd.exception.ErrorCode;
+import io.hhplus.tdd.exception.HanghaeException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -42,7 +44,7 @@ public class PointService {
      */
     public UserPoint chargePoint(long userId, long amount) {
         if (amount < 100) {
-            throw new IllegalArgumentException("충전 금액은 100 이상이어야 합니다.");
+            throw new HanghaeException(ErrorCode.INVALID_CHARGE_AMOUNT);
         }
 
         ReentrantLock lock = userLockMap.computeIfAbsent(userId, k -> new ReentrantLock());
@@ -74,7 +76,7 @@ public class PointService {
      */
     public UserPoint usePoint(long userId, long amount) {
         if (amount < 100) {
-            throw new IllegalArgumentException("사용 금액은 100 이상이어야 합니다.");
+            throw new HanghaeException(ErrorCode.INVALID_USE_AMOUNT);
         }
 
         ReentrantLock lock = userLockMap.computeIfAbsent(userId, k -> new ReentrantLock());
@@ -86,7 +88,7 @@ public class PointService {
             UserPoint currentPoint = userPointTable.selectById(userId);
 
             if (currentPoint.point() < amount) {
-                throw new IllegalArgumentException("포인트 잔액이 부족합니다.");
+                throw new HanghaeException(ErrorCode.INSUFFICIENT_POINT);
             }
 
             long newAmount = currentPoint.point() - amount;

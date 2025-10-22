@@ -1,6 +1,8 @@
 package io.hhplus.tdd.point;
 
 import io.hhplus.tdd.database.UserPointTable;
+import io.hhplus.tdd.exception.ErrorCode;
+import io.hhplus.tdd.exception.HanghaeException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -143,7 +145,7 @@ class PointIntegrationTest {
                         .content(String.valueOf(useAmount))
                 )
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.code").value(ErrorCode.INSUFFICIENT_POINT.getCode()))
                 .andExpect(jsonPath("$.message").value("포인트 잔액이 부족합니다."));
     }
 
@@ -162,7 +164,7 @@ class PointIntegrationTest {
                     .content(String.valueOf(useAmount))
                 )
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.code").value(ErrorCode.INVALID_USE_AMOUNT.getCode()))
                 .andExpect(jsonPath("$.message").value("사용 금액은 100 이상이어야 합니다."));
 
     }
@@ -240,8 +242,10 @@ class PointIntegrationTest {
 
         // when & then
         assertThatThrownBy(() -> pointService.usePoint(userId, 1000L))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("포인트 잔액이 부족합니다.");
+                .isInstanceOf(HanghaeException.class)
+                .hasMessage("포인트 잔액이 부족합니다.")
+                .extracting("errorCode").isEqualTo(ErrorCode.INSUFFICIENT_POINT);
+
 
         // 잔액이 변경되지 않았는지 확인
         UserPoint point = pointService.getUserPoint(userId);

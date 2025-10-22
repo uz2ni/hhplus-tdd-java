@@ -2,6 +2,8 @@ package io.hhplus.tdd.point;
 
 import io.hhplus.tdd.database.PointHistoryTable;
 import io.hhplus.tdd.database.UserPointTable;
+import io.hhplus.tdd.exception.ErrorCode;
+import io.hhplus.tdd.exception.HanghaeException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -95,19 +97,21 @@ class PointServiceUnitTest {
     }
 
     @Test
-    @DisplayName("충전 금액이 100 미만이면 예외가 발생한다")
+    @DisplayName("충전 금액이 100 미만/음수 이면 예외가 발생한다")
     void chargePoint_ThrowsException_WhenAmountIsZeroOrNegative() {
         // given
         long userId = 1L;
 
         // when & then
         assertThatThrownBy(() -> pointService.chargePoint(userId, 99))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("충전 금액은 100 이상이어야 합니다.");
+                .isInstanceOf(HanghaeException.class)
+                .hasMessage("충전 금액은 100 이상이어야 합니다.")
+                .extracting("errorCode").isEqualTo(ErrorCode.INVALID_CHARGE_AMOUNT);
 
         assertThatThrownBy(() -> pointService.chargePoint(userId, -100))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("충전 금액은 100 이상이어야 합니다.");
+                .isInstanceOf(HanghaeException.class)
+                .hasMessage("충전 금액은 100 이상이어야 합니다.")
+                .extracting("errorCode").isEqualTo(ErrorCode.INVALID_CHARGE_AMOUNT);
 
         verify(userPointTable, never()).selectById(anyLong());
         verify(userPointTable, never()).insertOrUpdate(anyLong(), anyLong());
@@ -148,12 +152,14 @@ class PointServiceUnitTest {
 
         // when & then
         assertThatThrownBy(() -> pointService.usePoint(userId, 99))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("사용 금액은 100 이상이어야 합니다.");
+                .isInstanceOf(HanghaeException.class)
+                .hasMessage("사용 금액은 100 이상이어야 합니다.")
+                .extracting("errorCode").isEqualTo(ErrorCode.INVALID_USE_AMOUNT);
 
         assertThatThrownBy(() -> pointService.usePoint(userId, -100))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("사용 금액은 100 이상이어야 합니다.");
+                .isInstanceOf(HanghaeException.class)
+                .hasMessage("사용 금액은 100 이상이어야 합니다.")
+                .extracting("errorCode").isEqualTo(ErrorCode.INVALID_USE_AMOUNT);
 
         verify(userPointTable, never()).selectById(anyLong());
         verify(userPointTable, never()).insertOrUpdate(anyLong(), anyLong());
@@ -172,8 +178,9 @@ class PointServiceUnitTest {
 
         // when & then
         assertThatThrownBy(() -> pointService.usePoint(userId, useAmount))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("포인트 잔액이 부족합니다.");
+                .isInstanceOf(HanghaeException.class)
+                .hasMessage("포인트 잔액이 부족합니다.")
+                .extracting("errorCode").isEqualTo(ErrorCode.INSUFFICIENT_POINT);
 
         verify(userPointTable, times(1)).selectById(userId);
         verify(userPointTable, never()).insertOrUpdate(anyLong(), anyLong()); // never() 실행 안되었는지 검증

@@ -1,5 +1,8 @@
 package io.hhplus.tdd.point;
 
+import io.hhplus.tdd.exception.ErrorCode;
+import io.hhplus.tdd.exception.HanghaeException;
+
 public record UserPoint(
         long id,
         long point,
@@ -12,10 +15,10 @@ public record UserPoint(
 
     public UserPoint { // record 방식 사용 시 생성자 통해 유효값 검증 추가
         if (id < 0) {
-            throw new IllegalArgumentException("id는 음수일 수 없습니다.");
+            throw new HanghaeException(ErrorCode.NEGATIVE_ID);
         }
         if (point < 0) {
-            throw new IllegalArgumentException("point는 음수일 수 없습니다.");
+            throw new HanghaeException(ErrorCode.NEGATIVE_POINT);
         }
     }
 }
