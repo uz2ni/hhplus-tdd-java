@@ -3,17 +3,21 @@ package io.hhplus.tdd.point;
 import io.hhplus.tdd.database.PointHistoryTable;
 import io.hhplus.tdd.database.UserPointTable;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PointService {
 
     private final Map<Long, Object> userLocks = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, ReentrantLock> userLockMap = new ConcurrentHashMap<>();
 
     private final UserPointTable userPointTable;
     private final PointHistoryTable pointHistoryTable;
@@ -48,16 +52,25 @@ public class PointService {
             throw new IllegalArgumentException("충전 금액은 100 이상이어야 합니다.");
         }
 
-        Object lock = getUserLock(userId);
+        ReentrantLock lock = userLockMap.computeIfAbsent(userId, k -> new ReentrantLock());
+        lock.lock();
 
-        synchronized (lock) {
+        try {
+            log.debug("포인트 충전 시작 - userId: {}, amount: {}", userId, amount);
+
             UserPoint currentPoint = userPointTable.selectById(userId);
             long newAmount = currentPoint.point() + amount;
 
             UserPoint updatedPoint = userPointTable.insertOrUpdate(userId, newAmount);
             pointHistoryTable.insert(userId, amount, TransactionType.CHARGE, updatedPoint.updateMillis());
 
+            log.debug("포인트 충전 완료 - userId: {}, 이전: {}, 이후: {}",
+                    userId, currentPoint.point(), updatedPoint.point());
+
             return updatedPoint;
+        } finally {
+            lock.unlock();
+            log.debug("락 해제 - userId: {}", userId);
         }
 
     }
@@ -71,9 +84,12 @@ public class PointService {
             throw new IllegalArgumentException("사용 금액은 100 이상이어야 합니다.");
         }
 
-        Object lock = getUserLock(userId);
+        ReentrantLock lock = userLockMap.computeIfAbsent(userId, k -> new ReentrantLock());
+        lock.lock();
 
-        synchronized (lock) {
+        try {
+            log.debug("포인트 사용 시작 - userId: {}, amount: {}", userId, amount);
+
             UserPoint currentPoint = userPointTable.selectById(userId);
 
             if (currentPoint.point() < amount) {
@@ -85,7 +101,13 @@ public class PointService {
             UserPoint updatedPoint = userPointTable.insertOrUpdate(userId, newAmount);
             pointHistoryTable.insert(userId, amount, TransactionType.USE, updatedPoint.updateMillis());
 
+            log.debug("포인트 사용 완료 - userId: {}, 이전: {}, 이후: {}",
+                    userId, currentPoint.point(), updatedPoint.point());
+
             return updatedPoint;
+        } finally {
+            lock.unlock();
+            log.debug("락 해제 - userId: {}", userId);
         }
 
     }
