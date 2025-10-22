@@ -57,6 +57,6 @@ pointHistoryTable.insert(userId, amount, TransactionType.USE, updatedPoint.updat
 - synchronized와 비교했을 때 논블로킹 락 처리, 타임아웃, 인터럽트 처리 등의 유연한 설정이 가능
 - DB 연동 없이 자바 코드 레벨에서 안전하게 처리 가능
 
-#### 5. 결론
+### 5. 결론
 - userId 단위로 ReentrantLock 락 적용 → 동일 userId 동시 접근 안전
 - 간단하지만 효과적인 자바 레벨 동시성 제어
