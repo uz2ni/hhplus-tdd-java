@@ -1,6 +1,5 @@
 package io.hhplus.tdd.point;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.hhplus.tdd.database.UserPointTable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,6 +15,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -37,11 +37,19 @@ class PointIntegrationTest {
     @Autowired
     private UserPointTable userPointTable;
 
+    /** userId 랜덤 생성 함수 **/
+    private static AtomicLong userIdGenerator = new AtomicLong(1);
+    private long generateUserId() {
+        long userId = userIdGenerator.getAndIncrement();
+        System.out.println("userId = " + userId);
+        return userId;
+    }
+
     @Test
     @DisplayName("포인트 조회 요청이 정상 응답된다")
     void api_getPoint() throws Exception {
         // given
-        long userId = 1L;
+        long userId = generateUserId();
         long amount = 3000L;
         pointService.chargePoint(userId, amount);
 
@@ -56,7 +64,7 @@ class PointIntegrationTest {
     @DisplayName("포인트 조회 요청 시 실패한다 (id가 숫자가 아닌 경우)")
     void api_getPoint_failWithNonNumericId() throws Exception {
         // given
-        String userId = "힝헤99";
+        String userId = "항해99";
 
         // when & then
         String url = UriComponentsBuilder.fromPath("/point/{id}")
@@ -72,7 +80,7 @@ class PointIntegrationTest {
     @DisplayName("포인트 충전 요청이 정상 응답된다")
     void api_chargePoint() throws Exception {
         // given
-        long userId = 2L;
+        long userId = generateUserId();
         String chargeAmount = "1000";
 
         // when
@@ -89,7 +97,7 @@ class PointIntegrationTest {
     @DisplayName("포인트 충전 요청이 실패한다 (충전 금액이 100미만인 경우)")
     void api_chargePoint_failWithNonAmount() throws Exception {
         // given
-        long userId = 3L;
+        long userId = generateUserId();
         long chargeAmount = -1000L;
 
         // when & then
@@ -104,7 +112,7 @@ class PointIntegrationTest {
     @DisplayName("포인트 사용 요청이 성공한다")
     void api_usePoint() throws Exception {
         // given
-        long userId = 4L;
+        long userId = generateUserId();
         long chargeAmount = 4000L;
         long useAmount = 1000L;
         long amount = chargeAmount - useAmount;
@@ -124,7 +132,7 @@ class PointIntegrationTest {
     @DisplayName("포인트 사용 요청이 실패한다 (충전 금액보다 사용 금액이 많은 경우)")
     void api_usePoint_failWithInsufficientBalance() throws Exception {
         // given
-        long userId = 5L;
+        long userId = generateUserId();
         long chargeAmount = 4000L;
         long useAmount = 5000L;
         pointService.chargePoint(userId, chargeAmount);
@@ -143,7 +151,7 @@ class PointIntegrationTest {
     @DisplayName("유저 포인트 사용 요청이 실패한다 (사용 금액이 100미만인 경우)")
     void api_useCharge_failWithInsufficientMinimumAmount() throws Exception {
         //given
-        long userId = 6L;
+        long userId = generateUserId();
         long chargeAmount = 4000L;
         long useAmount = -1000L;
         pointService.chargePoint(userId, chargeAmount);
@@ -163,7 +171,7 @@ class PointIntegrationTest {
     @DisplayName("포인트 충전 → 사용 → 조회 전체 플로우가 정상 동작한다")
     void fullFlow_ChargeUseAndQuery() {
         // given
-        long userId = 100L;
+        long userId = generateUserId();
         long chargeAmount = 1000L;
         long useAmount = 300L;
 
@@ -200,7 +208,7 @@ class PointIntegrationTest {
     @DisplayName("여러 번 충전과 사용을 반복해도 정확한 잔액이 유지된다")
     void multipleTransactions_MaintainCorrectBalance() {
         // given
-        long userId = 101L;
+        long userId = generateUserId();
 
         // when & then
         pointService.chargePoint(userId, 1000L);
@@ -227,7 +235,7 @@ class PointIntegrationTest {
     @DisplayName("잔액 부족 시 사용이 실패하고 잔액은 변경되지 않는다")
     void insufficientBalance_NoBalanceChange() {
         // given
-        long userId = 102L;
+        long userId = generateUserId();
         pointService.chargePoint(userId, 500L);
 
         // when & then
@@ -288,7 +296,7 @@ class PointIntegrationTest {
     @DisplayName("동일 사용자에 대한 동시 충전이 모두 반영된다")
     void concurrentCharges_SameUser() throws InterruptedException {
         // given
-        long userId = 300L;
+        long userId = generateUserId();
         int requestCount = 10;
         long chargeAmount = 100L;
         ExecutorService executorService = Executors.newFixedThreadPool(requestCount);
@@ -336,7 +344,8 @@ class PointIntegrationTest {
     void concurrentChargeAndUse_SameUser() throws InterruptedException {
         // given
         long userId = 400L;
-        userPointTable.insertOrUpdate(userId, 10000L); // 초기 잔액 설정
+        long chargeAmount = 10000L;
+        userPointTable.insertOrUpdate(userId, chargeAmount); // 초기 잔액 설정
 
         int threadCount = 20;
         ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
